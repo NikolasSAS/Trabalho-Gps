@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Rastreador do Motoboy</title>
+
+
+    <!-- Leaflet -->
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+
+        #map {
+
+            width: 100%;
+
+            height: 100vh;
+
+        }
+
+
+        #info {
+
+            position: absolute;
+
+            top: 15px;
+
+            left: 15px;
+
+            background: white;
+
+            padding: 15px;
+
+            border-radius: 10px;
+
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+
+            z-index: 1000;
+
+            min-width: 230px;
+
+        }
+
+
+        #status {
+
+            margin-top: 8px;
+
+            color: #777;
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<!-- Informações -->
+
+<div id="info">
+
+    <strong>🚚 Rastreador do Motoboy</strong>
+
+    <br><br>
+
+    Latitude:
+    <span id="latitude">--</span>
+
+    <br>
+
+    Longitude:
+    <span id="longitude">--</span>
+
+    <div id="status">
+        🟡 Aguardando GPS...
+    </div>
+
+</div>
+
+
+<!-- Mapa -->
+
+<div id="map"></div>
+
+
+<!-- Leaflet -->
+
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+</script>
+
+
+<script>
+
+
+
+// POSIÇÃO INICIAL
+
+
+const posicaoInicial = [
+
+    -23.5505,
+
+    -46.6333
+
+];
+
+
+
+// CRIA O MAPA
+
+
+const map = L.map("map").setView(
+
+    posicaoInicial,
+
+    15
+
+);
+
+
+
+// MAPA OPENSTREETMAP
+
+
+L.tileLayer(
+
+    "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+
+    {
+
+        maxZoom: 19,
+
+        attribution:
+            '&copy; OpenStreetMap contributors'
+
+    }
+
+).addTo(map);
+
+
+
+// MARCADOR
+
+
+const marcador = L.marker(
+
+    posicaoInicial
+
+).addTo(map);
+
+
+// Texto do marcador
+
+marcador.bindPopup(
+
+    "<b>🚚 Motoboy</b><br>Aguardando GPS..."
+
+);
+
+
+
+// ATUALIZA LOCALIZAÇÃO
+
+
+async function atualizarLocalizacao() {
+
+
+    try {
+
+
+        const resposta = await fetch(
+
+            "/api/localizacao"
+
+        );
+
+
+        const dados = await resposta.json();
+
+
+        console.log(
+
+            "GPS recebido:",
+
+            dados
+
+        );
+
+
+        // Verifica se existe localização
+
+        if (
+
+            dados.latitude !== null &&
+
+            dados.longitude !== null
+
+        ) {
+
+
+            const latitude = Number(
+
+                dados.latitude
+
+            );
+
+
+            const longitude = Number(
+
+                dados.longitude
+
+            );
+
+
+            // Nova posição
+
+            const novaPosicao = [
+
+                latitude,
+
+                longitude
+
+            ];
+
+
+            // Move marcador
+
+            marcador.setLatLng(
+
+                novaPosicao
+
+            );
+
+
+            // Centraliza mapa
+
+            map.setView(
+
+                novaPosicao
+
+            );
+
+
+            // Atualiza latitude
+
+            document.getElementById(
+
+                "latitude"
+
+            ).textContent =
+
+                latitude.toFixed(6);
+
+
+            // Atualiza longitude
+
+            document.getElementById(
+
+                "longitude"
+
+            ).textContent =
+
+                longitude.toFixed(6);
+
+
+            // Status
+
+            document.getElementById(
+
+                "status"
+
+            ).textContent =
+
+                "🟢 GPS conectado";
+
+
+            // Popup
+
+            marcador.setPopupContent(
+
+                "<b>🚚 Motoboy</b><br>" +
+
+                "Latitude: " +
+
+                latitude.toFixed(6) +
+
+                "<br>" +
+
+                "Longitude: " +
+
+                longitude.toFixed(6)
+
+            );
+
+
+        } else {
+
+
+            document.getElementById(
+
+                "status"
+
+            ).textContent =
+
+                "🟡 Aguardando localização do ESP32";
+
+        }
+
+
+    }
+
+    catch (erro) {
+
+
+        console.error(
+
+            "Erro ao buscar GPS:",
+
+            erro
+
+        );
+
+
+        document.getElementById(
+
+            "status"
+
+        ).textContent =
+
+            "🔴 Erro no servidor";
+
+
+    }
+
+}
+
+
+
+// ATUALIZA A CADA 3 SEGUNDOS
+
+
+setInterval(
+
+    atualizarLocalizacao,
+
+    3000
+
+);
+
+
+// Executa imediatamente
+
+atualizarLocalizacao();
+
+
+</script>
+
+
+</body>
+
+</html>
