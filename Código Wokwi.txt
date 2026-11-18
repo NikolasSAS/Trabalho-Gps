@@ -1,0 +1,106 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+
+// Wi-Fi simulado do Wokwi
+const char* WIFI_SSID = "Wokwi-GUEST";
+const char* WIFI_PASSWORD = "";
+
+// Substituir pelo endereço público do servidor.
+const char* SERVER_URL =
+  "https://wheel-imports-lodging-practical.trycloudflare.com/api/localizacao";
+
+// Coordenadas de teste: Rio de Janeiro
+double latitude = -22.906847;
+double longitude = -43.172897;
+
+// Intervalo entre os envios
+const unsigned long INTERVALO_ENVIO = 5000;
+unsigned long ultimoEnvio = 0;
+
+void conectarWiFi() {
+  Serial.print("Conectando ao Wi-Fi");
+
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+
+  Serial.println();
+  Serial.println("Wi-Fi conectado!");
+  Serial.print("IP do ESP32: ");
+  Serial.println(WiFi.localIP());
+}
+
+void gerarCoordenadas() {
+  // Simula um pequeno deslocamento do GPS.
+  latitude += 0.000100;
+  longitude += 0.000100;
+
+  // Reinicia o percurso ao atingir este limite.
+  if (latitude > -22.906047) {
+    latitude = -22.906847;
+    longitude = -43.172897;
+  }
+}
+
+void enviarLocalizacao() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Wi-Fi desconectado. Reconectando...");
+    WiFi.reconnect();
+    return;
+  }
+
+  HTTPClient http;
+
+  http.begin(SERVER_URL);
+  http.addHeader("Content-Type", "application/json");
+
+  String json = "{\"latitude\":";
+  json += String(latitude, 6);
+  json += ",\"longitude\":";
+  json += String(longitude, 6);
+  json += "}";
+
+  Serial.println("\nEnviando localizacao:");
+  Serial.println(json);
+
+  int codigoHTTP = http.POST(json);
+
+  if (codigoHTTP > 0) {
+    Serial.print("HTTP: ");
+    Serial.println(codigoHTTP);
+
+    Serial.print("Resposta do servidor: ");
+    Serial.println(http.getString());
+
+    if (codigoHTTP >= 200 && codigoHTTP < 300) {
+      Serial.println("Localizacao enviada com sucesso!");
+    }
+  } else {
+    Serial.print("Erro HTTP: ");
+    Serial.println(http.errorToString(codigoHTTP));
+  }
+
+  http.end();
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  conectarWiFi();
+
+  Serial.println("\nSimulador GPS iniciado!");
+}
+
+void loop() {
+  if (millis() - ultimoEnvio >= INTERVALO_ENVIO) {
+    ultimoEnvio = millis();
+
+    gerarCoordenadas();
+    enviarLocalizacao();
+  }
+}
